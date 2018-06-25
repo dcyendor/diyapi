@@ -49,3 +49,7 @@ See the diyapi file to create a service.
 
 
 More details to follow...
+
+See the py-diyapi for the individual python scripts for the scheduling.
+
+WIP.. :)
