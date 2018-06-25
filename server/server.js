@@ -1,7 +1,7 @@
 var express = require('express');
 var bodyParser = require('body-parser');
 var gpio = require('rpi-gpio');
-const { exec } = require('child_process');
+const exec = require('child_process');
 var yaml = require('js-yaml');
 var fs = require('fs');
 
