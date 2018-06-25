@@ -1,7 +1,16 @@
 #!/bin/sh
 #/etc/init.d/diyapi
+### BEGIN INIT INFO
+# Provides:          diyapi
+# Required-Start:    $all
+# Required-Stop:
+# Default-Start:     2 3 4 5
+# Default-Stop:
+# Short-Description: DIYAPI Service
+### END INIT INFO
+
 export PATH=$PATH:/usr/local/bin:/usr/bin
-export NODE_PATH=$NODE_PATH:/usr/local/lib/node_modules
+export NODE_PATH=$NODE_PATH:/lib/node_modules
 
 
 case "$1" in
