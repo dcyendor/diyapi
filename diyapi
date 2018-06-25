@@ -1,0 +1,26 @@
+#!/bin/sh
+#/etc/init.d/diyapi
+export PATH=$PATH:/usr/local/bin:/usr/bin
+export NODE_PATH=$NODE_PATH:/usr/local/lib/node_modules
+
+
+case "$1" in
+start)
+forever -o /var/log/diyapi/stdout.log start /home/pi/workspace.node/diyapi/server/server.js >> /var/log/diyapi/output.log 2>>/var/log/diyapi/error.log
+# exec forever --sourceDir=/home/pi/workspace.node/diyapi/server -p /home/pi/workspace.nodejs/diyapi/server server.js  #scriptarguments
+;;
+stop)
+forever stop /home/pi/workspace.node/diyapi/server/server.js
+# exec forever stop --sourceDir=/home/pi/workspace.node/diyapi/server server.js
+;;
+restart)
+forever stop /home/pi/workspace.node/diyapi/server/server.js
+sleep 2
+forever -o /var/log/diyapi/stdout.log start /home/pi/workspace.node/diyapi/server/server.js >> /var/log/diyapi/output.log 2>>/var/log/diyapi/error.log
+;;
+*)
+echo "Usage: /etc/init.d/diyapi {start|stop|restart}"
+exit 1
+;;
+esac
+exit 0

@@ -28,4 +28,24 @@ I am currently developing on a Raspberry PI B+ and Raspberry PI Zero W.
 
 I am working on the UI in Android currently.
 
+Installation Instructions
+
+Clone the repository
+
+Install forever
+ - sudo npm install forever -g
+
+Execute "setup.sh" 
+ - Create some template config files and logging folder.
+
+Execute "node server.js" in the server directory to start the server.
+
+See the diyapi file to create a service.
+ - You must edit the path to the server.js file
+ - Copy this file to /etc/init.d
+ - Enable the service to start with the following commands:
+   - sudo update-rc.d diyapi defaults
+   - sudo update-rc.d diyapi enable
+
+
 More details to follow...
