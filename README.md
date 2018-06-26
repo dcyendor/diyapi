@@ -28,6 +28,8 @@ Install forever if you wish to make the service a daemon
 
 ## Installation Instructions
 
+* navigate into the folder and execute, sudo npm install. This will install the required packages ensuringthe correct version.
+
 TBD
 
 ## API Usage and Documentation
