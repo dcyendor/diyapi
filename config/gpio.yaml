@@ -1,0 +1,14 @@
+# #################################
+# ## YAML GPIO EXAMPLE CONF FILE ##
+# #################################
+
+
+3:
+  title: "Misters"
+  description: "Mister Description"
+  icon: "water"
+
+5:
+  title: "GPIO 5"
+  description: "Gpio 3 Description"
+  icon: "light"

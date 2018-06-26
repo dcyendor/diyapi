@@ -1,55 +1,52 @@
 # diyapi
-Node API library designed for SBC automation.
 
-I am currently developing the API library. Features currently in progress:
+Node API library designed for SBC automation currently under development. This library is created to create HTTP api endpoints 
+to perform tasks on the SBC for automation projects. Currently, the api endpoints will allow you to control GPIO pins. Api key
+security is implemented and a api key registering process is in progress. 
 
-GPIO OFF|ON
+I am currently developing the project and it is not complete. The end goal is to have a simple way to implement open HTTP api 
+endpoints so to compliment a UI application or any way you see fit.
 
-Scheduling READ|ADD|DELETE
+## Getting Started
 
-API Key Security
+Ensure your version of Linux is updated
+* sudo apt update
+* sudo apt upgrade
 
-A method to onboard the API (API Key) to a User Interface
- - Onboarding method that will generate a 4 digit code for authentication.
- - Will deliver the apikey upon successful completition.
+Note the nodejs version requirements here...
 
-Requirements
+Note the python package requirements here...
 
-NodeJS and NPM are required, to check if they are installed:
+Optional packages here...
 
-node -v
-npm -v
+npm
+* Check if npm is currently installed, npm -v
+* Install npm, sudo apt install npm
 
-If they are not installed:
+Install forever if you wish to make the service a daemon
+* sudo npm install forever -g
 
-sudo sudo apt-get install nodejs npm
+## Installation Instructions
 
-I am currently developing on a Raspberry PI B+ and Raspberry PI Zero W.
+TBD
 
-I am working on the UI in Android currently.
+## API Usage and Documentation
 
-Installation Instructions
+TBD
 
-Clone the repository
+## DiyAPI Daemon Instructions
 
-Install forever
- - sudo npm install forever -g
+The included file diyapi is a framework for creating a service that will work on reboot. Follow these steps:
 
-Execute "setup.sh" 
- - Create some template config files and logging folder.
-
-Execute "node server.js" in the server directory to start the server.
-
-See the diyapi file to create a service.
- - You must edit the path to the server.js file
- - Copy this file to /etc/init.d
- - Enable the service to start with the following commands:
+* Ensure forever is installed
+  - sudo npm install forever -g
+* Edit the file to the location of the server.js file.
+* Copy the file to the /etc/init.d directory
+* Enable the service withe the following commands:
    - sudo update-rc.d diyapi defaults
    - sudo update-rc.d diyapi enable
 
+I understand this is not perfect and will work to make it better in the future.
 
-More details to follow...
 
-See the py-diyapi for the individual python scripts for the scheduling.
 
-WIP.. :)

@@ -1,7 +1,7 @@
 var express = require('express');
 var bodyParser = require('body-parser');
 var gpio = require('rpi-gpio');
-const exec = require('child_process');
+const exec = require('child_process').exec;
 var yaml = require('js-yaml');
 var fs = require('fs');
 
@@ -38,7 +38,7 @@ var authorize_client = [];
 // LOGGING CONSTANTS //
 // ///////////////// //
 
-var CONFIG_LOCATION = '/etc/diyapi';
+var CONFIG_LOCATION = __dirname + '/../config';
 var LOG_LOCATION = '/var/log/diyapi';
 var GPIO_CONFIG_FILE_YAML = CONFIG_LOCATION + '/gpio.yaml';
 var API_KEY_FILE = CONFIG_LOCATION + '/apikey';
@@ -108,6 +108,13 @@ function bootstrap() {
         fs.mkdirSync(LOG_LOCATION);
       }
 
+      if (!fs.existsSync(API_KEY_FILE)) {
+        writeSystemLog(LOG_TYPE_SYS, SEV_INFO, "Generated the api key.");
+        var newApiKey = generateApiKey(); 
+        writeApiKeyFile(newApiKey); 
+      }
+
+      /*
       if (!fs.existsSync(CONFIG_LOCATION)) {
         writeSystemLog(LOG_TYPE_SYS, SEV_ERR, "Configuration files not present. Is this the first time?");
         fs.mkdirSync(CONFIG_LOCATION);
@@ -121,6 +128,7 @@ function bootstrap() {
         writeSystemLog(LOG_TYPE_SYS, SEV_ERR, "Generated the api key.");     
         // fs.mkdirSync(CONFIG_LOCATION);
       }
+      */
 
       initialize_gpio();
       writeSystemLog(LOG_TYPE_SYS, SEV_INFO, 'Initialization Complete.');
