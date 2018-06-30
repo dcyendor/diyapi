@@ -66,6 +66,13 @@ var AUTH_STATUS_AUTH = 'authorized';
 var AUTH_STATUS_EXPIRED = 'expired';
 var AUTH_STATUS_INVALID = 'invalid';
 
+// ////////////////////// //
+// PYTHON SCRIPT CONSTANT //
+// ////////////////////// //
+
+var PYTHON_SCRIPT_LOCATION = __dirname + "/../python";
+var PYTHON_TIMER_SCRIPT_FILE = PYTHON_SCRIPT_LOCATION + '/relay_pin_control.py';
+
 
 // /////////////////
 // INITIALIZATION //
@@ -825,7 +832,7 @@ app.get('/diag', function(req, res) {
 // crontab -r
 
 app.put('/schedule/create/:pin', function(req, res) {
-  //curl -i -X PUT -H 'Content-Type: application/json' -d '{ "ontime": "10:30 AM", "offtime": "11:00 AM" }' http://10.1.11.112:3000/schedule/create/3
+  //curl -i -X PUT -H 'Content-Type: application/json' -d '{ "ontime": "10:30 AM", "offtime": "11:00 AM" }' http://10.1.11.85:3000/schedule/create/3
 
   var pin = req.params.pin;
   //console.log(req.body);
@@ -844,11 +851,11 @@ app.put('/schedule/create/:pin', function(req, res) {
 
   // Create 2 cron jobs, one for ontime and one for offtime
   var ontime_cron = '(crontab -l ; echo "' + ontime_array[1] + ' ' + ontime_array[0] +
-                    ' * * * python /home/pi/workspace.python/relay_control/relay_pin_control.py ' + pin + ' "ON" #' +
+                    ' * * * python ' + PYTHON_TIMER_SCRIPT_FILE + " " + pin + ' "ON" #' +
                     uuid +'") | crontab -';
 
   var offtime_cron = '(crontab -l ; echo "' + offtime_array[1] + ' ' + offtime_array[0] +
-                    ' * * * python /home/pi/workspace.python/relay_control/relay_pin_control.py ' + pin + ' "OFF" #' +
+                    ' * * * python ' + PYTHON_TIMER_SCRIPT_FILE + " " + pin + ' "OFF" #' +
                     uuid + '") | crontab -';
 
   executeShellCommand(ontime_cron, function(err, out) {
@@ -863,7 +870,7 @@ app.put('/schedule/create/:pin', function(req, res) {
   });
 });
 
-//curl -i -X PUT -H 'Content-Type: application/json' -d '{ "ontime": "10:30 AM", "offtime": "11:00 AM" }' http://10.1.11.112:3000/schedule/create/3
+//curl -i -X PUT -H 'Content-Type: application/json' -d '{ "uid": "f07f9018-ec04-4678-8082-af13432c1ac5"  }' http://10.1.11.85:3000/schedule/delete/3
 app.put('/schedule/delete/:pin', function(req, res) {
   // change this to read the uuid and delete all with the uuid
 
@@ -871,30 +878,32 @@ app.put('/schedule/delete/:pin', function(req, res) {
   var pin = req.params.pin;
   //console.log(req.body);
 
-  var ontime = req.body.ontime;
-  var offtime = req.body.offtime;
+  var uid = req.body.uid;
+
+  //var ontime = req.body.ontime;
+  //var offtime = req.body.offtime;
   //console.log("Parameters: PIN: " + pin + ", ONTIME: " + ontime + ", OFFTIME: " + offtime);
 
   // Parse ontime and offtime, get hour and minute.
   // Might change depending on android time picker.
-  var ontime_array = parseTime(ontime);
-  var offtime_array = parseTime(offtime);
+  //var ontime_array = parseTime(ontime);
+  //var offtime_array = parseTime(offtime);
   //console.log("ONTIME_PARSED: hour: " + ontime_array[0] + ', minute: ' + ontime_array[1]);
   //console.log("OFFTIME_PARSED: hour: " + offtime_array[0] + ', minute: ' + offtime_array[1]);
 
 // crontab -u mobman -l | grep -v 'perl /home/mobman/test.pl'  | crontab -u mobman -
   // Create 2 cron jobs, one for ontime and one for offtime
 
-  var ontime_cron = 'crontab -l | grep -vF "' + ontime_array[1] + ' ' + ontime_array[0] +
-                    ' * * * python /home/pi/workspace.python/relay_control/relay_pin_control.py ' + pin + ' ON" | crontab -';
+  var ontime_cron = 'crontab -l | grep -vF "' + uid +
+                    '" | crontab -';
 
-  var offtime_cron = 'crontab -l | grep -vF "' + offtime_array[1] + ' ' + offtime_array[0] +
-                     ' * * * python /home/pi/workspace.python/relay_control/relay_pin_control.py ' + pin + ' OFF" | crontab -';
+  var offtime_cron = 'crontab -l | grep -vF "' + uid +
+                     '" | crontab -';
 
   executeShellCommand(ontime_cron, function(err, out) {
     executeShellCommand(offtime_cron, function(err, out) {
 
-        console.log(" > Schedule_Deleted // Pin: " + pin + " // On Time: " + ontime + " // Off Time: " + offtime);
+        console.log(" > Schedule_Deleted // Pin: " + pin + " // UID: " + uid);
         console.log(" >> Command: " + ontime_cron);
         console.log(" >> Command: " + offtime_cron);
 
