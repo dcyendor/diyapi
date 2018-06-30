@@ -17,15 +17,11 @@ forever -o /var/log/relay_operations/stdout.log start /home/pi/workspace.nodejs/
 
 create website for validating the key. React...
 
-
 creating the auth key, when scrubbing the auth key, ensure memory leak does not occur.
  need to set a max size and remove oldest enties
  need to remove expired entries (already remove entries from same host)
 
-
-
 */
-
 
 // //////////////// //
 // GLOBAL VARIABLES //
@@ -103,10 +99,6 @@ app.use(bodyParser.json());  // expect JSON format
 
 function bootstrap() {
 
-    // if (!fs.existsSync(CONFIG_LOCATION)) {
-    //   fs.mkdirSync(CONFIG_LOCATION);
-    // }
-
     try {
 
       writeSystemLog(LOG_TYPE_SYS, SEV_INFO, 'Server Starting.');
@@ -120,22 +112,6 @@ function bootstrap() {
         var newApiKey = generateApiKey(); 
         writeApiKeyFile(newApiKey); 
       }
-
-      /*
-      if (!fs.existsSync(CONFIG_LOCATION)) {
-        writeSystemLog(LOG_TYPE_SYS, SEV_ERR, "Configuration files not present. Is this the first time?");
-        fs.mkdirSync(CONFIG_LOCATION);
-        writeSystemLog(LOG_TYPE_SYS, SEV_ERR, "Created config directory.");
-        // fs.closeSync(fs.openSync(GPIO_CONFIG_FILE_YAML, 'w'));
-        fs.createReadStream(__dirname + '/../gpio.yaml.example').pipe(fs.createWriteStream(GPIO_CONFIG_FILE_YAML));
-        // fs.copyFileSync( __dirname + "/../gpio.yaml.example", GPIO_CONFIG_FILE_YAML);
-        writeSystemLog(LOG_TYPE_SYS, SEV_ERR, "Copied the template gpio config file. Please edit this file and restart service.");
-        var newApiKey = generateApiKey();
-        writeApiKeyFile(newApiKey);
-        writeSystemLog(LOG_TYPE_SYS, SEV_ERR, "Generated the api key.");     
-        // fs.mkdirSync(CONFIG_LOCATION);
-      }
-      */
 
       initialize_gpio();
       writeSystemLog(LOG_TYPE_SYS, SEV_INFO, 'Initialization Complete.');
@@ -211,22 +187,6 @@ function generateAuthCode() {
   });
 }
 
-
-/*
-function writeApiKeyFile(apikey) {
-
-  fs.writeFile(API_KEY_FILE, apikey, function(err) {
-    if(err) {
-      console.log(err);
-    } else {
-      executeShellCommand('chmod 600 ' + API_KEY_FILE, function(err, out) { 
-        var message = 'writeApiKeyFile, Generated a new api key.';
-        writeSystemLog(LOG_TYPE_OPER, SEV_INFO, message);
-      });
-    }
-  });
-}
-*/
 function writeApiKeyFile(apikey) {
 
   fs.writeFile(API_KEY_FILE, apikey);
@@ -659,18 +619,48 @@ app.get('/pin/:pin', function(req, res){
 
 });
 
+// ** API SECURITY IMPLEMENTED
 app.put('/pin/:pin', function(req, res) {
-  // PAYLOAD { value : true OFF || false ON } to change the state of the GPIO
-  var pin = req.params.pin;
-  var value = JSON.parse(req.body.value);
 
-  gpio.setup(pin, gpio.DIR_OUT, function() {
-    gpio.write(pin, value, function(err) {
-      var message = 'PUT /pin/:pin SRC_IP: ' + req.connection.remoteAddress + ', pin: ' + pin + ', setting value to: ' + value;
-      res.sendStatus(200);
-      writeSystemLog(LOG_TYPE_OPER, SEV_INFO, message);
-    });
-  });
+    // Fetch the apikey query string from uri.
+    var apikey = req.query.apikey;
+
+    // Check to see if the apikey was in the uri.
+    if (apikey) {
+  
+      // If the apikey sent matches the configured apikey.
+      if (checkApiKey(apikey)) {
+        
+        // LOGIC //
+        // ///// //
+
+        var pin = req.params.pin;
+        var value = JSON.parse(req.body.value);
+
+        gpio.setup(pin, gpio.DIR_OUT, function() {
+          gpio.write(pin, value, function(err) {
+            var message = 'PUT /pin/:pin SRC_IP: ' + req.connection.remoteAddress + ', pin: ' + pin + ', setting value to: ' + value;
+            res.sendStatus(200);
+            writeSystemLog(LOG_TYPE_OPER, SEV_INFO, message);
+          });
+        });
+
+        // END LOGIC //
+        // ///////// //
+
+    } else {
+      // If the apikey does not match.
+      res.status(401).send("");
+      var message = 'GET /schedule, SRC_IP: ' + req.connection.remoteAddress + ', UNAUTHORIZED: Wrong API Key.';
+      writeSystemLog(LOG_TYPE_OPER, SEV_ERR, message);
+    }
+  } else {
+    // If there is not apikey sent in the querystring.
+    res.status(401).send("");
+    var message = 'GET /schedule, SRC_IP: ' + req.connection.remoteAddress + ', UNAUTHORIZED: No API Key.';
+    writeSystemLog(LOG_TYPE_OPER, SEV_ERR, message);
+  }
+
 });
 
 // ///////////// //
@@ -789,9 +779,112 @@ app.get('/schedule/:pin', function(req, res) {
     });
 });
 
+// ** API SECURITY IMPLEMENTED
+app.put('/schedule/create/:pin', function(req, res) {
+  // Fetch the apikey query string from uri.
+  var apikey = req.query.apikey;
 
+  // Check to see if the apikey was in the uri.
+  if (apikey) {
 
+    // If the apikey sent matches the configured apikey.
+    if (checkApiKey(apikey)) {
+      
+      // LOGIC //
+      // ///// //
 
+      var pin = req.params.pin;
+      var ontime = req.body.ontime;
+      var offtime = req.body.offtime;
+      var ip_address = req.connection.remoteAddress;
+
+      // Parse ontime and offtime, get hour and minute.
+      var ontime_array = parseTime(ontime);
+      var offtime_array = parseTime(offtime);
+      var uuid = uuidv4();
+      //console.log("ONTIME_PARSED: hour: " + ontime_array[0] + ', minute: ' + ontime_array[1]);
+      //console.log("OFFTIME_PARSED: hour: " + offtime_array[0] + ', minute: ' + offtime_array[1]);
+
+      // Create 2 cron jobs, one for ontime and one for offtime
+      var ontime_cron = '(crontab -l ; echo "' + ontime_array[1] + ' ' + ontime_array[0] +
+                        ' * * * python ' + PYTHON_TIMER_SCRIPT_FILE + " " + pin + ' "ON" #' +
+                        uuid +'") | crontab -';
+
+      var offtime_cron = '(crontab -l ; echo "' + offtime_array[1] + ' ' + offtime_array[0] +
+                        ' * * * python ' + PYTHON_TIMER_SCRIPT_FILE + " " + pin + ' "OFF" #' +
+                        uuid + '") | crontab -';
+
+      executeShellCommand(ontime_cron, function(err, out) {
+        executeShellCommand(offtime_cron, function(err, out) {
+
+            var message = 'PUT /schedule/create/:pin SRC_IP: ' + ip_address + ', pin: ' + pin + ', Schedule CREATE: ' + uuid + ', ' + ontime + "-" + offtime;
+            writeSystemLog(LOG_TYPE_OPER, SEV_INFO, message);
+            res.sendStatus(200);
+        });
+      });
+
+      // END LOGIC //
+      // ///////// //
+
+    } else {
+      // If the apikey does not match.
+      res.status(401).send("");
+      var message = 'GET /schedule, SRC_IP: ' + req.connection.remoteAddress + ', UNAUTHORIZED: Wrong API Key.';
+      writeSystemLog(LOG_TYPE_OPER, SEV_ERR, message);
+    }
+  } else {
+    // If there is not apikey sent in the querystring.
+    res.status(401).send("");
+    var message = 'GET /schedule, SRC_IP: ' + req.connection.remoteAddress + ', UNAUTHORIZED: No API Key.';
+    writeSystemLog(LOG_TYPE_OPER, SEV_ERR, message);
+  }
+
+});
+
+// ** API SECURITY IMPLEMENTED
+app.put('/schedule/delete/:pin', function(req, res) {
+    // Fetch the apikey query string from uri.
+    var apikey = req.query.apikey;
+
+    // Check to see if the apikey was in the uri.
+    if (apikey) {
+  
+      // If the apikey sent matches the configured apikey.
+      if (checkApiKey(apikey)) {
+        
+        // LOGIC //
+        // ///// //
+
+        var pin = req.params.pin;
+        var ip_address = req.connection.remoteAddress;
+
+        var uid = req.body.uid;
+
+        var cron_job = 'crontab -l | grep -vF "' + uid + '" | crontab -';
+
+        executeShellCommand(cron_job, function(err, out) {
+          var message = 'PUT /schedule/delete/:pin SRC_IP: ' + ip_address + ', pin: ' + pin +', Schedule DEL: ' + uid;
+          writeSystemLog(LOG_TYPE_OPER, SEV_INFO, message);
+          res.sendStatus(200);
+        });
+
+      // END LOGIC //
+      // ///////// //
+
+    } else {
+      // If the apikey does not match.
+      res.status(401).send("");
+      var message = 'GET /schedule, SRC_IP: ' + req.connection.remoteAddress + ', UNAUTHORIZED: Wrong API Key.';
+      writeSystemLog(LOG_TYPE_OPER, SEV_ERR, message);
+    }
+  } else {
+    // If there is not apikey sent in the querystring.
+    res.status(401).send("");
+    var message = 'GET /schedule, SRC_IP: ' + req.connection.remoteAddress + ', UNAUTHORIZED: No API Key.';
+    writeSystemLog(LOG_TYPE_OPER, SEV_ERR, message);
+  }
+
+});
 
 
 /* ***********************************************************
@@ -799,7 +892,7 @@ app.get('/schedule/:pin', function(req, res) {
 *  * THESE APIs ARE IN PROCESS AND NOT USED IN ANY APPLICATION
    *********************************************************** */
 
-
+/*
 app.get('/diag', function(req, res) {
   // Run diagnostic commands and return the results in JSON format for consumption.
   var results = [];
@@ -823,96 +916,7 @@ app.get('/diag', function(req, res) {
     });
   });
 });
-
-//To add a job to crontab:
-// (crontab -u mobman -l ; echo "*/5 * * * * perl /home/mobman/test.pl") | crontab -u mobman -
-//To remove a job from crontab:
-// crontab -u mobman -l | grep -v 'perl /home/mobman/test.pl'  | crontab -u mobman -
-//Remove everything from crontab:
-// crontab -r
-
-app.put('/schedule/create/:pin', function(req, res) {
-  //curl -i -X PUT -H 'Content-Type: application/json' -d '{ "ontime": "10:30 AM", "offtime": "11:00 AM" }' http://10.1.11.85:3000/schedule/create/3
-
-  var pin = req.params.pin;
-  //console.log(req.body);
-
-  var ontime = req.body.ontime;
-  var offtime = req.body.offtime;
-  //console.log("Parameters: PIN: " + pin + ", ONTIME: " + ontime + ", OFFTIME: " + offtime);
-
-  // Parse ontime and offtime, get hour and minute.
-  // Might change depending on android time picker.
-  var ontime_array = parseTime(ontime);
-  var offtime_array = parseTime(offtime);
-  var uuid = uuidv4();
-  //console.log("ONTIME_PARSED: hour: " + ontime_array[0] + ', minute: ' + ontime_array[1]);
-  //console.log("OFFTIME_PARSED: hour: " + offtime_array[0] + ', minute: ' + offtime_array[1]);
-
-  // Create 2 cron jobs, one for ontime and one for offtime
-  var ontime_cron = '(crontab -l ; echo "' + ontime_array[1] + ' ' + ontime_array[0] +
-                    ' * * * python ' + PYTHON_TIMER_SCRIPT_FILE + " " + pin + ' "ON" #' +
-                    uuid +'") | crontab -';
-
-  var offtime_cron = '(crontab -l ; echo "' + offtime_array[1] + ' ' + offtime_array[0] +
-                    ' * * * python ' + PYTHON_TIMER_SCRIPT_FILE + " " + pin + ' "OFF" #' +
-                    uuid + '") | crontab -';
-
-  executeShellCommand(ontime_cron, function(err, out) {
-    executeShellCommand(offtime_cron, function(err, out) {
-
-        console.log(" > Schedule_Created // Pin: " + pin + " // On Time: " + ontime + " // Off Time: " + offtime);
-        console.log(" >> Command: " + ontime_cron);
-        console.log(" >> Command: " + offtime_cron);
-
-        res.sendStatus(200);
-    });
-  });
-});
-
-//curl -i -X PUT -H 'Content-Type: application/json' -d '{ "uid": "f07f9018-ec04-4678-8082-af13432c1ac5"  }' http://10.1.11.85:3000/schedule/delete/3
-app.put('/schedule/delete/:pin', function(req, res) {
-  // change this to read the uuid and delete all with the uuid
-
-
-  var pin = req.params.pin;
-  //console.log(req.body);
-
-  var uid = req.body.uid;
-
-  //var ontime = req.body.ontime;
-  //var offtime = req.body.offtime;
-  //console.log("Parameters: PIN: " + pin + ", ONTIME: " + ontime + ", OFFTIME: " + offtime);
-
-  // Parse ontime and offtime, get hour and minute.
-  // Might change depending on android time picker.
-  //var ontime_array = parseTime(ontime);
-  //var offtime_array = parseTime(offtime);
-  //console.log("ONTIME_PARSED: hour: " + ontime_array[0] + ', minute: ' + ontime_array[1]);
-  //console.log("OFFTIME_PARSED: hour: " + offtime_array[0] + ', minute: ' + offtime_array[1]);
-
-// crontab -u mobman -l | grep -v 'perl /home/mobman/test.pl'  | crontab -u mobman -
-  // Create 2 cron jobs, one for ontime and one for offtime
-
-  var ontime_cron = 'crontab -l | grep -vF "' + uid +
-                    '" | crontab -';
-
-  var offtime_cron = 'crontab -l | grep -vF "' + uid +
-                     '" | crontab -';
-
-  executeShellCommand(ontime_cron, function(err, out) {
-    executeShellCommand(offtime_cron, function(err, out) {
-
-        console.log(" > Schedule_Deleted // Pin: " + pin + " // UID: " + uid);
-        console.log(" >> Command: " + ontime_cron);
-        console.log(" >> Command: " + offtime_cron);
-
-        res.sendStatus(200);
-    });
-  });
-});
-
-
+*/
 
 
 /*
